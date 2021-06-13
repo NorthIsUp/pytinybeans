@@ -183,8 +183,6 @@ class PyTinybeans(object):
         return children
 
     def get_entries(self, child: TinybeanChild, last: int = None):
-        entries = []
-
         if last is None:
             last = int(
                 time.mktime(
@@ -203,9 +201,8 @@ class PyTinybeans(object):
                 "last": last,
             },
         )
-
         for entry in response.json()["entries"]:
-            entries.append(TinybeanEntry(entry))
+            yield TinybeanEntry(entry)
 
         while response.json()["numEntriesRemaining"] > 0:
             last = response.json()["entries"][0]["timestamp"]
@@ -220,9 +217,7 @@ class PyTinybeans(object):
             )
 
             for entry in response.json()["entries"]:
-                entries.append(TinybeanEntry(entry))
-
-        return entries
+                yield TinybeanEntry(entry)
 
     def request_export(
         self, journal: TinybeanJournal, start_dt: datetime, end_dt: datetime
