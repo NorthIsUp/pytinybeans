@@ -30,13 +30,13 @@ class BaseTinybean(BaseModel):
             (k, v)
             for k, v in self.__dict__.items()
             if (
-                (f := self.__fields__.get(k))
-                and f.field_info.extra.get('repr') == True
+                (f := self.__fields__.get(k)) and f.field_info.extra.get('repr') == True
             )
         ]
 
     def __str__(self) -> str:
         return repr(self)
+
 
 class TinybeansUser(BaseTinybean):
     id: int = Field(repr=True)
@@ -48,7 +48,7 @@ class TinybeansUser(BaseTinybean):
 
 class TinybeanRelationshiop(BaseTinybean):
     label: str = Field(repr=True)
-    name: str  = Field(repr=True) # father/friend/etc.
+    name: str = Field(repr=True)  # father/friend/etc.
 
     @property
     def is_parent(self) -> bool:
@@ -85,7 +85,7 @@ class TinybeanJournal(BaseTinybean):
 
     def __init__(self, **data: Any) -> None:
         super().__init__(**data)
-        
+
         for child in self.children:
             print(f'setting journal on child {child}')
             child._journal = self  # type: ignore
