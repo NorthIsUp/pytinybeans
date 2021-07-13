@@ -1,3 +1,4 @@
+from __future__ import annotations
 
 from datetime import date, datetime
 from functools import partial
@@ -7,7 +8,7 @@ from urllib.parse import urljoin
 
 import inflection
 import requests
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, typing, validator
 
 IOS_CLIENT_ID = '13bcd503-2137-9085-a437-d9f2ac9281a1'
 
@@ -24,37 +25,46 @@ class BaseTinybean(BaseModel):
     def __post_init__(self) -> None:
         pass
 
+    def __repr_args__(self) -> typing.ReprArgs:
+        return [
+            (k, v)
+            for k, v in self.__dict__.items()
+            if (
+                (f := self.__fields__.get(k))
+                and f.field_info.extra.get('repr') == True
+            )
+        ]
+
+    def __str__(self) -> str:
+        return repr(self)
 
 class TinybeansUser(BaseTinybean):
-    id: int
+    id: int = Field(repr=True)
     first_name: str
     last_name: str
     email_address: str
-    username: str
-
-    def __repr__(self) -> str:
-        return f'{self.__class__.__name__}<{self.first_name} {self.last_name}>'
+    username: str = Field(repr=True)
 
 
 class TinybeanRelationshiop(BaseTinybean):
-    label: str
-    name: str # father/friend/etc.
+    label: str = Field(repr=True)
+    name: str  = Field(repr=True) # father/friend/etc.
 
     @property
     def is_parent(self) -> bool:
-        return self.label.lower() in ('father',
-        'mother')
+        return self.label.lower() in ('father', 'mother')
 
 
 class TinybeanChild(BaseTinybean):
-    id: int
-    first_name: str
+    id: int = Field(repr=True)
+    first_name: str = Field(repr=True)
     last_name: str
     gender: str
-    dob: date
+    dob: date = Field(repr=True)
+    _journal: Optional[TinybeanJournal] = None
     # journal: TinybeanJournal
 
-    @validator("dob", pre=True)
+    @validator('dob', pre=True)
     def parse_dob(cls, v: str):
         return datetime.strptime(v, '%Y-%m-%d').date()
 
@@ -63,42 +73,46 @@ class TinybeanChild(BaseTinybean):
         return f'{self.first_name} {self.last_name}'
 
     @property
-    def journal(self) -> 'TinybeanJournal':
+    def journal(self) -> TinybeanJournal:
+        assert self._journal is not None, 'journal must be set'
         return self._journal
 
 
 class TinybeanJournal(BaseTinybean):
-    id: int
-    title: str
+    id: int = Field(repr=True)
+    title: str = Field(repr=True)
     children: List[TinybeanChild]
 
     def __init__(self, **data: Any) -> None:
         super().__init__(**data)
         
         for child in self.children:
-            child._journal = self
+            print(f'setting journal on child {child}')
+            child._journal = self  # type: ignore
 
 
 class TinybeanFollowing(BaseTinybean):
-    id: int
+    id: int = Field(repr=True)
     url: str = Field(alias='URL')
     relationship: TinybeanRelationshiop
     journal: TinybeanJournal
 
 
 class TinybeanComment(BaseTinybean):
-    id: int
-    details: str
+    id: int = Field(repr=True)
+    details: str = Field(repr=True)
     user: TinybeansUser
+
 
 class TinybeanEmotion(BaseTinybean):
     id: int
     entry_id: int
     user_id: int
-    type: dict
+    type: Dict[str, Any]
+
 
 class TinybeanBlobs(BaseTinybean):
-    o: str
+    o: str = Field(repr=True)
 
     def best(self) -> str:
         for k in ('o', 'o2', 't', 's', 's2', 'm', 'l', 'p'):
@@ -108,11 +122,11 @@ class TinybeanBlobs(BaseTinybean):
 
 
 class TinybeanEntry(BaseTinybean):
-    id: int
-    uuid: str
+    id: int = Field(repr=True)
+    uuid: str = Field(repr=True)
     timestamp: datetime
-    type: str
-    caption: str
+    type: str = Field(repr=True)
+    caption: str = Field(repr=True)
     blobs: TinybeanBlobs
     attachment_type: Optional[str] = None
     latitude: Optional[str] = None
@@ -121,25 +135,25 @@ class TinybeanEntry(BaseTinybean):
     emotions: List[TinybeanEmotion] = Field(default_factory=list)
     comments: List[TinybeanComment] = Field(default_factory=list)
 
-
     @validator('timestamp', pre=True)
     def validate_timestamp(cls, value: str) -> datetime:
         return datetime.fromtimestamp(float(value) / 1000)
 
     @validator('attachment_type', pre=True)
-    def validate_attachment_type(cls, v:str, values, **kwargs) -> Optional[str]:
-        # print(v, values, kwargs)
+    def validate_attachment_type(
+        cls, v: str, values: Sequence[str], **kwargs: Any
+    ) -> Optional[str]:
+        print(v, values, kwargs)
         if v == 'VIDEO':
             return v
         else:
-            return getattr(self, 'type', None)
+            return kwargs.get('type')
 
     @property
     def video_url(self) -> Optional[str]:
         if self.type == 'VIDEO':
             return self.attachment_url__mp4
         return None
-
 
 
 class PyTinybeans:
@@ -151,7 +165,11 @@ class PyTinybeans:
         self._access_token = None
 
     def _api(
-        self, path: str, params: dict = None, json: dict = None, method: str = 'GET'
+        self,
+        path: str,
+        params: Optional[Dict[str, Union[None, str, int]]] = None,
+        json: Optional[Dict[str, str]] = None,
+        method: str = 'GET',
     ) -> requests.Response:
         url = urljoin(self.API_BASE_URL, path)
 
@@ -229,13 +247,13 @@ class PyTinybeans:
 
         def limit_check(entry: TinybeanEntry) -> bool:
             if _counter:
-                return next(_counter) <= limit
+                return limit <= next(_counter)
             elif isinstance(limit, datetime):
-                return limit <= entry.timestamp
+                return limit < entry.timestamp
             return False
 
-        response_json: Optional[dict] = None
-        while response_json is None or response_json['numEntriesRemaining'] > 0:
+        response_json: Dict[str, Any] = {'numEntriesRemaining': 1}
+        while response_json['numEntriesRemaining'] > 0:
             response = self._api(
                 path=f'journals/{child.journal.id}/entries',
                 params={
