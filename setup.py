@@ -20,5 +20,10 @@ setuptools.setup(
     python_requires='>=3.9',
     install_requires=[
         'requests',
+        'inflection',
+        'pydantic'
     ],
+    tests_require=[
+        'pytest',
+    ]
 )
