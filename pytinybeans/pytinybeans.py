@@ -83,9 +83,7 @@ class TinybeanJournal(BaseTinybean):
     title: str = Field(repr=True)
     children: List[TinybeanChild]
 
-    def __init__(self, **data: Any) -> None:
-        super().__init__(**data)
-
+    def __post_init__(self):
         for child in self.children:
             print(f'setting journal on child {child}')
             child._journal = self  # type: ignore
