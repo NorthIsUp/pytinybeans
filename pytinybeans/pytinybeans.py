@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime
-from functools import partial
+from functools import cached_property, partial
 from itertools import count
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Union
 from urllib.parse import urljoin
@@ -112,6 +112,7 @@ class TinybeanEmotion(BaseTinybean):
 class TinybeanBlobs(BaseTinybean):
     o: str = Field(repr=True)
 
+    @cached_property
     def best(self) -> str:
         for k in ('o', 'o2', 't', 's', 's2', 'm', 'l', 'p'):
             if v := getattr(self, k, None):
@@ -147,12 +148,33 @@ class TinybeanEntry(BaseTinybean):
         else:
             return kwargs.get('type')
 
-    @property
-    def video_url(self) -> Optional[str]:
-        if self.type == 'VIDEO':
-            return self.attachment_url__mp4
-        return None
+    @cached_property
+    def is_video(self) -> bool:
+        return self.type == 'VIDEO'
 
+    @cached_property
+    def is_photo(self) -> bool:
+        return self.type == 'PHOTO'
+
+    @property
+    def url(self) -> str:
+        if self.is_video:
+            return self.video_url
+        elif self.is_photo:
+            return self.photo_url
+        raise ValueError(f'No url for type {self.type}')
+
+    @property
+    def photo_url(self) -> str:
+        if self.is_photo:
+            return self.blobs.best
+        raise ValueError(f'No photo url for {self.type}')
+
+    @property
+    def video_url(self) -> str:
+        if self.is_video and self.attachment_url__mp4:
+            return self.attachment_url__mp4
+        raise ValueError(f'No video url for {self.type}')
 
 class PyTinybeans:
     API_BASE_URL = 'https://tinybeans.com/api/1/'
