@@ -157,6 +157,10 @@ class TinybeanEntry(BaseTinybean):
         return self.type == 'PHOTO'
 
     @property
+    def is_text(self) -> bool:
+        return self.type == 'TEXT'
+
+    @property
     def url(self) -> str:
         if self.is_video:
             return self.video_url
