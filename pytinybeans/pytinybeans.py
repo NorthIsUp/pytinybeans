@@ -251,7 +251,7 @@ class PyTinybeans:
             return False
 
         response_json: Dict[str, Any] = {'numEntriesRemaining': 1}
-        while response_json['numEntriesRemaining'] > 0:
+        while response_json.get('numEntriesRemaining', 0) > 0:
             response = self._api(
                 path=f'journals/{child.journal.id}/entries',
                 params={
