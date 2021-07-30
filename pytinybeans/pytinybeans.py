@@ -112,7 +112,7 @@ class TinybeanEmotion(BaseTinybean):
 class TinybeanBlobs(BaseTinybean):
     o: str = Field(repr=True)
 
-    @cached_property
+    @property
     def best(self) -> str:
         for k in ('o', 'o2', 't', 's', 's2', 'm', 'l', 'p'):
             if v := getattr(self, k, None):
@@ -148,11 +148,11 @@ class TinybeanEntry(BaseTinybean):
         else:
             return kwargs.get('type')
 
-    @cached_property
+    @property
     def is_video(self) -> bool:
         return self.type == 'VIDEO'
 
-    @cached_property
+    @property
     def is_photo(self) -> bool:
         return self.type == 'PHOTO'
 
