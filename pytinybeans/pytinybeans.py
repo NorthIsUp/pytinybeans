@@ -223,11 +223,10 @@ class PyTinybeans:
 
         return False
 
-    async def login(self, username: str, password: str) -> None:
+    async def login(self, username: str, password: str) -> bool:
         if self.logged_in:
             # check via api/me or something that this token works
-            sleep(0)
-            return
+            return self.logged_in
 
         response = await self._api(
             path='authenticate',
@@ -244,6 +243,8 @@ class PyTinybeans:
 
         self._access_token = response_json['accessToken']
         self.user = TinybeansUser(**response_json['user'])
+
+        return self.logged_in
 
     async def get_followings(self) -> AsyncGenerator[TinybeanFollowing]:
         response = await self._api(
