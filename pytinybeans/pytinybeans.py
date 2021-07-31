@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from asyncio import sleep
 from datetime import date, datetime
 from functools import cached_property, partial
 from itertools import count
@@ -225,6 +226,7 @@ class PyTinybeans:
     async def login(self, username: str, password: str) -> None:
         if self.logged_in:
             # check via api/me or something that this token works
+            sleep(0)
             return
 
         response = await self._api(
@@ -236,8 +238,10 @@ class PyTinybeans:
             },
             method='POST',
         )
+
         response.raise_for_status()
         response_json = await response.json()
+
         self._access_token = response_json['accessToken']
         self.user = TinybeansUser(**response_json['user'])
 
