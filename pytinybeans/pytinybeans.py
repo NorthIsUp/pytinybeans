@@ -40,10 +40,10 @@ class BaseTinybean(BaseModel):
 
 class TinybeansUser(BaseTinybean):
     id: int = Field(repr=True)
-    first_name: str
-    last_name: str
-    email_address: str
-    username: str = Field(repr=True)
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    email_address: Optional[str] = None
+    username: Optional[str] = Field(repr=True, default=None)
 
 
 class TinybeanRelationshiop(BaseTinybean):
