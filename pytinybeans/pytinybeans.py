@@ -1,24 +1,33 @@
 from __future__ import annotations
 
-from asyncio import sleep
+from dataclasses import dataclass
 from datetime import date, datetime
-from functools import cached_property, partial
+from functools import partial
 from itertools import count
-from typing import (Any, AsyncGenerator, Dict, Iterable, List, Optional,
-                    Sequence, Union)
+from typing import (
+    Any,
+    AsyncGenerator,
+    ClassVar,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Sequence,
+    Union,
+)
 from urllib.parse import urljoin
 
 import aiohttp
 import inflection
 from pydantic import BaseModel, Field, typing, validator
 
-IOS_CLIENT_ID = '13bcd503-2137-9085-a437-d9f2ac9281a1'
+IOS_CLIENT_ID = "13bcd503-2137-9085-a437-d9f2ac9281a1"
 
 
 class BaseTinybean(BaseModel):
     class Config:
         alias_generator = partial(inflection.camelize, uppercase_first_letter=False)
-        extra = 'allow'
+        extra = "allow"
 
     def __init__(self, **data: Any) -> None:
         super().__init__(**data)
@@ -31,7 +40,9 @@ class BaseTinybean(BaseModel):
         return [
             (k, v)
             for k, v in self.__dict__.items()
-            if ((f := self.__fields__.get(k)) and f.field_info.extra.get('repr') == True)
+            if (
+                (f := self.__fields__.get(k)) and f.field_info.extra.get("repr") == True
+            )
         ]
 
     def __str__(self) -> str:
@@ -52,7 +63,7 @@ class TinybeanRelationshiop(BaseTinybean):
 
     @property
     def is_parent(self) -> bool:
-        return self.label.lower() in ('father', 'mother')
+        return self.label.lower() in ("father", "mother")
 
 
 class TinybeanChild(BaseTinybean):
@@ -64,17 +75,17 @@ class TinybeanChild(BaseTinybean):
     _journal: Optional[TinybeanJournal] = None
     # journal: TinybeanJournal
 
-    @validator('dob', pre=True)
+    @validator("dob", pre=True)
     def parse_dob(cls, v: str):
-        return datetime.strptime(v, '%Y-%m-%d').date()
+        return datetime.strptime(v, "%Y-%m-%d").date()
 
     @property
     def name(self):
-        return f'{self.first_name} {self.last_name}'
+        return f"{self.first_name} {self.last_name}"
 
     @property
     def journal(self) -> TinybeanJournal:
-        assert self._journal is not None, 'journal must be set'
+        assert self._journal is not None, "journal must be set"
         return self._journal
 
 
@@ -85,13 +96,13 @@ class TinybeanJournal(BaseTinybean):
 
     def __post_init__(self):
         for child in self.children:
-            print(f'setting journal on child {child}')
+            print(f"setting journal on child {child}")
             child._journal = self  # type: ignore
 
 
 class TinybeanFollowing(BaseTinybean):
     id: int = Field(repr=True)
-    url: str = Field(alias='URL')
+    url: str = Field(alias="URL")
     relationship: TinybeanRelationshiop
     journal: TinybeanJournal
 
@@ -114,10 +125,10 @@ class TinybeanBlobs(BaseTinybean):
 
     @property
     def best(self) -> str:
-        for k in ('o', 'o2', 't', 's', 's2', 'm', 'l', 'p'):
+        for k in ("o", "o2", "t", "s", "s2", "m", "l", "p"):
             if v := getattr(self, k, None):
                 return v
-        raise ValueError(f'No best blob found for {self}')
+        raise ValueError(f"No best blob found for {self}")
 
 
 class TinybeanEntry(BaseTinybean):
@@ -134,30 +145,30 @@ class TinybeanEntry(BaseTinybean):
     emotions: List[TinybeanEmotion] = Field(default_factory=list)
     comments: List[TinybeanComment] = Field(default_factory=list)
 
-    @validator('timestamp', pre=True)
+    @validator("timestamp", pre=True)
     def validate_timestamp(cls, value: str) -> datetime:
         return datetime.fromtimestamp(float(value) / 1000)
 
-    @validator('attachment_type', pre=True)
+    @validator("attachment_type", pre=True)
     def validate_attachment_type(
         cls, v: str, values: Sequence[str], **kwargs: Any
     ) -> Optional[str]:
-        if v == 'VIDEO':
+        if v == "VIDEO":
             return v
         else:
-            return kwargs.get('type')
+            return kwargs.get("type")
 
     @property
     def is_video(self) -> bool:
-        return self.attachment_type == 'VIDEO'
+        return self.attachment_type == "VIDEO"
 
     @property
     def is_photo(self) -> bool:
-        return self.type == 'PHOTO' and not self.is_video
+        return self.type == "PHOTO" and not self.is_video
 
     @property
     def is_text(self) -> bool:
-        return self.type == 'TEXT'
+        return self.type == "TEXT"
 
     @property
     def url(self) -> str:
@@ -165,35 +176,38 @@ class TinybeanEntry(BaseTinybean):
             return self.video_url
         elif self.is_photo:
             return self.photo_url
-        raise ValueError(f'No url for type {self.type}')
+        raise ValueError(f"No url for type {self.type}")
 
     @property
     def photo_url(self) -> str:
         if self.is_photo:
             return self.blobs.best
-        raise ValueError(f'No photo url for {self.type}')
+        raise ValueError(f"No photo url for {self.type}")
 
     @property
     def video_url(self) -> str:
         if self.is_video and self.attachment_url__mp4:
             return self.attachment_url__mp4
-        raise ValueError(f'No video url for {self.type}')
+        raise ValueError(f"No video url for {self.type}")
+
+    @property
+    def timestamp_ms(self) -> int:
+        return int(self.timestamp.timestamp() * 1000)
 
 
+@dataclass
 class PyTinybeans:
-    API_BASE_URL = 'https://tinybeans.com/api/1/'
-    CLIENT_ID = IOS_CLIENT_ID
-
-    def __init__(self) -> None:
-        self.session = aiohttp.ClientSession()
-        self._access_token = None
+    session: aiohttp.ClientSession
+    _access_token: Optional[str] = None
+    API_BASE_URL: ClassVar[str] = "https://tinybeans.com/api/1/"
+    CLIENT_ID: ClassVar[str] = IOS_CLIENT_ID
 
     async def _api(
         self,
         path: str,
         params: Optional[Dict[str, Union[None, str, int]]] = None,
         json: Optional[Dict[str, str]] = None,
-        method: str = 'GET',
+        method: str = "GET",
     ) -> aiohttp.ClientResponse:
         url = urljoin(self.API_BASE_URL, path)
 
@@ -203,7 +217,7 @@ class PyTinybeans:
                 url,
                 params=params,
                 json=json,
-                headers={'authorization': self._access_token},
+                headers={"authorization": self._access_token},
             )
         else:
             response = await self.session.request(
@@ -213,7 +227,6 @@ class PyTinybeans:
                 json=json,
             )
 
-        # print(response.text)
         return response
 
     @property
@@ -229,34 +242,34 @@ class PyTinybeans:
             return self.logged_in
 
         response = await self._api(
-            path='authenticate',
+            path="authenticate",
             json={
-                'username': username,
-                'password': password,
-                'clientId': IOS_CLIENT_ID,
+                "username": username,
+                "password": password,
+                "clientId": IOS_CLIENT_ID,
             },
-            method='POST',
+            method="POST",
         )
 
         response.raise_for_status()
         response_json = await response.json()
 
-        self._access_token = response_json['accessToken']
-        self.user = TinybeansUser(**response_json['user'])
+        self._access_token = response_json["accessToken"]
+        self.user = TinybeansUser(**response_json["user"])
 
         return self.logged_in
 
-    async def get_followings(self) -> AsyncGenerator[TinybeanFollowing]:
+    async def get_followings(self) -> AsyncGenerator[TinybeanFollowing, None]:
         response = await self._api(
-            path='followings',
-            params={'clientId': self.CLIENT_ID},
+            path="followings",
+            params={"clientId": self.CLIENT_ID},
         )
 
         response.raise_for_status()
 
         response_json = await response.json()
 
-        for following in response_json['followings']:
+        for following in response_json["followings"]:
             yield TinybeanFollowing(**following)
 
     @property
@@ -272,7 +285,7 @@ class PyTinybeans:
         child: TinybeanChild,
         last: Optional[int] = None,
         limit: Union[None, int, datetime] = None,
-    ) -> List[TinybeanEntry]:
+    ) -> AsyncGenerator[TinybeanEntry, None]:
         if last is None:
             last = int(datetime.utcnow().timestamp() * 1000)
 
@@ -280,48 +293,48 @@ class PyTinybeans:
 
         def limit_check(entry: TinybeanEntry) -> bool:
             # return True if limit is reached
-            if _counter:
+            if _counter is not None:
                 return limit <= next(_counter)
             elif isinstance(limit, datetime):
                 return limit > entry.timestamp
             return False
 
-        response_json: Dict[str, Any] = {'numEntriesRemaining': 1}
-        while response_json.get('numEntriesRemaining', 0) > 0:
+        response_json: Dict[str, Any] = {"numEntriesRemaining": 1}
+        while response_json.get("numEntriesRemaining", 0) > 0:
             response = await self._api(
-                path=f'journals/{child.journal.id}/entries',
+                path=f"journals/{child.journal.id}/entries",
                 params={
-                    'clientId': self.CLIENT_ID,
-                    'fetchSize': 200,
-                    'last': last,
+                    "clientId": self.CLIENT_ID,
+                    "fetchSize": 200,
+                    "last": last,
                 },
             )
             response.raise_for_status()
             response_json = await response.json()
 
-            for entry_json in response_json['entries']:
+            for entry_json in response_json["entries"]:
                 entry = TinybeanEntry(**entry_json)
                 if limit_check(entry):
                     return
                 yield entry
 
-            last = entry.timestamp
+            last = entry.timestamp_ms
 
     async def request_export(
         self, journal: TinybeanJournal, start_dt: datetime, end_dt: datetime
     ) -> bool:
         response = self._api(
-            method='POST',
-            path='/api/1/journals/{journal_id}/export'.format(journal_id=journal.id),
+            method="POST",
+            path="/api/1/journals/{journal_id}/export".format(journal_id=journal.id),
             params={
-                'startDate': start_dt.strftime('%Y-%m-%d'),
-                'endDate': end_dt.strftime('%Y-%m-%d'),
+                "startDate": start_dt.strftime("%Y-%m-%d"),
+                "endDate": end_dt.strftime("%Y-%m-%d"),
             },
         )
 
         response.raise_for_status()
         response_json = await response.json()
-        if response_json['status'] == 'ok':
+        if response_json["status"] == "ok":
             return True
 
         return False
