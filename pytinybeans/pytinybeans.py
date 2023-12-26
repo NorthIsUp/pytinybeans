@@ -19,15 +19,16 @@ from urllib.parse import urljoin
 
 import aiohttp
 import inflection
-from pydantic import BaseModel, Field, typing, validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, typing
 
 IOS_CLIENT_ID = "13bcd503-2137-9085-a437-d9f2ac9281a1"
 
 
 class BaseTinybean(BaseModel):
-    class Config:
-        alias_generator = partial(inflection.camelize, uppercase_first_letter=False)
-        extra = "allow"
+    model_config = ConfigDict(
+        alias_generator=partial(inflection.camelize, uppercase_first_letter=False),
+        extra="allow",
+    )
 
     def __init__(self, **data: Any) -> None:
         super().__init__(**data)
@@ -40,9 +41,7 @@ class BaseTinybean(BaseModel):
         return [
             (k, v)
             for k, v in self.__dict__.items()
-            if (
-                (f := self.__fields__.get(k)) and f.field_info.extra.get("repr") == True
-            )
+            if ((f := self.model_fields.get(k)) and f.repr == True)
         ]
 
     def __str__(self) -> str:
@@ -75,7 +74,7 @@ class TinybeanChild(BaseTinybean):
     _journal: Optional[TinybeanJournal] = None
     # journal: TinybeanJournal
 
-    @validator("dob", pre=True)
+    @field_validator("dob", mode="before")
     def parse_dob(cls, v: str):
         return datetime.strptime(v, "%Y-%m-%d").date()
 
@@ -145,11 +144,11 @@ class TinybeanEntry(BaseTinybean):
     emotions: List[TinybeanEmotion] = Field(default_factory=list)
     comments: List[TinybeanComment] = Field(default_factory=list)
 
-    @validator("timestamp", pre=True)
+    @field_validator("timestamp", mode="before")
     def validate_timestamp(cls, value: str) -> datetime:
         return datetime.fromtimestamp(float(value) / 1000)
 
-    @validator("attachment_type", pre=True)
+    @field_validator("attachment_type", mode="before")
     def validate_attachment_type(
         cls, v: str, values: Sequence[str], **kwargs: Any
     ) -> Optional[str]:

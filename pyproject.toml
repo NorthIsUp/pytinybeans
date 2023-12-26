@@ -1,0 +1,34 @@
+[tool.poetry]
+name = "pytinybeans"
+version = "0.1.0"
+description = ""
+authors = ["adam"]
+
+[tool.poetry.scripts]
+app = "welovebot.cli:main"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+
+requests = '*'
+inflection = '*'
+pydantic = '*'
+aiohttp = '*'
+
+[tool.poetry.dev-dependencies]
+pytest = "*"
+pytest-asyncio = "*"
+python-dotenv = '*'
+
+[tool.pycln]
+all = true
+
+[tool.isort]
+profile = "black"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

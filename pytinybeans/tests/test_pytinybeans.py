@@ -1,8 +1,16 @@
 from os import environ
 
 import pytest
+from dotenv import load_dotenv
+
 import pytinybeans
 from pytinybeans.pytinybeans import PyTinybeans, TinybeanJournal
+
+
+@pytest.fixture
+def env_prefix() -> str:
+    load_dotenv()
+    return environ.get("ENV_PREFIX", "")
 
 
 @pytest.fixture
@@ -11,17 +19,19 @@ def child_id():
 
 
 @pytest.fixture
-def api():
+async def api(env_prefix):
     api = pytinybeans.PyTinybeans()
-    username = environ['NORTHISBOT__TINYBEANS__LOGIN']
-    password = environ['NORTHISBOT__TINYBEANS__PASSWORD']
-    api.login(username=username, password=password)
+    username = environ[f"{env_prefix}TINYBEANS_LOGIN"]
+    password = environ[f"{env_prefix}TINYBEANS_PASSWORD"]
+    await api.login(username=username, password=password)
     return api
 
 
 @pytest.fixture()
-def my_journal(api: PyTinybeans) -> TinybeanJournal:
-    return next(f for f in api.get_followings() if f.relationship.is_parent).journal
+async def my_journal(api: PyTinybeans) -> TinybeanJournal:
+    async for following in api.get_followings():
+        if following.relationship.is_parent:
+            return following.journal
 
 
 def test_api(api: PyTinybeans, my_journal: TinybeanJournal):
