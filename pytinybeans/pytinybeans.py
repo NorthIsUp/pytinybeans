@@ -138,8 +138,8 @@ class TinybeanEntry(BaseTinybean):
     caption: str = Field(repr=True)
     blobs: TinybeanBlobs
     attachment_type: Optional[str] = None
-    latitude: Optional[str] = None
-    longitude: Optional[str] = None
+    latitude: Optional[float | str] = None
+    longitude: Optional[float | str] = None
     attachment_url__mp4: Optional[str] = None
     emotions: List[TinybeanEmotion] = Field(default_factory=list)
     comments: List[TinybeanComment] = Field(default_factory=list)

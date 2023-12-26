@@ -34,8 +34,10 @@ async def my_journal(api: PyTinybeans) -> TinybeanJournal:
             return following.journal
 
 
-def test_api(api: PyTinybeans, my_journal: TinybeanJournal):
+async def test_api(api: PyTinybeans, my_journal: TinybeanJournal):
     child = my_journal.children[0]
     assert child.journal
-    entries = list(api.get_entries(child, limit=3))
+    entries = []
+    async for e in api.get_entries(child, limit=3):
+        entries.append(e)
     assert len(entries) == 3
