@@ -103,6 +103,20 @@ class TinybeanFollowing(BaseTinybean):
     url: str = Field(alias="URL")
     relationship: Optional[TinybeanRelationshiop] = None
     journal: TinybeanJournal
+    co_owner: bool = False
+    add_entries: bool = False
+    edit_milestones: bool = False
+    view_entries: bool = True
+    view_milestones: bool = True
+
+    @property
+    def is_owned(self) -> bool:
+        """The auth'd user owns or actively contributes to this journal.
+
+        Co-owner OR write-permission (addEntries) implies ownership in practice.
+        Read-only followings (e.g. grandparents following grandkids) return False.
+        """
+        return self.co_owner or self.add_entries
 
 
 class TinybeanComment(BaseTinybean):
