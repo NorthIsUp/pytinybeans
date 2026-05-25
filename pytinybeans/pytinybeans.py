@@ -370,8 +370,13 @@ class PyTinybeans:
                 return limit > entry.timestamp
             return False
 
-        response_json: Dict[str, Any] = {"numEntriesRemaining": 1}
-        while response_json.get("numEntriesRemaining", 0) > 0:
+        # TB stopped sending `numEntriesRemaining` at some point — its
+        # value is now always missing/None. We can't rely on it to decide
+        # whether to paginate. Loop until either an empty page or `last`
+        # stops moving (= page contained only older entries we've already
+        # walked past, signaled by min_ts_ms not strictly < the previous
+        # `last`).
+        while True:
             response = await self._api(
                 path=f"journals/{child.journal.id}/entries",
                 params={
@@ -407,9 +412,13 @@ class PyTinybeans:
 
             if min_ts_ms is None:
                 break
-            # If we got nothing past the limit on a full page, every older
-            # page will also fail — stop walking.
+            # If the page yielded nothing past the limit, older pages
+            # won't either — stop.
             if not yielded_any:
+                break
+            # If pagination didn't move backwards (page-min >= last), we'd
+            # loop forever on the same page; bail.
+            if min_ts_ms >= last:
                 break
             last = min_ts_ms
 
