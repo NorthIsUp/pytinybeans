@@ -351,6 +351,32 @@ class PyTinybeans:
 
         return children
 
+    async def get_entries_for_month(
+        self,
+        journal_id: int,
+        year: int,
+        month: int,
+    ) -> AsyncGenerator[TinybeanEntry, None]:
+        """Yield every entry whose journal_date falls in `year/month`.
+
+        This hits TB's canonical month endpoint — the same one the
+        official client uses to navigate the calendar — so it returns
+        the full month even when entries were backdated long after upload.
+        """
+        response = await self._api(
+            path=f"journals/{journal_id}/entries",
+            params={
+                "clientId": self.CLIENT_ID,
+                "fetchSize": 1000,
+                "year": year,
+                "month": month,
+            },
+        )
+        response.raise_for_status()
+        body = await response.json()
+        for entry_json in body.get("entries") or []:
+            yield TinybeanEntry(**entry_json)
+
     async def get_entries(
         self,
         child: TinybeanChild,
