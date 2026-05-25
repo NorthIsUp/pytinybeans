@@ -385,23 +385,33 @@ class PyTinybeans:
 
             entries_json = response_json.get("entries") or []
             if not entries_json:
-                # Empty page — nothing more to paginate from, even if the
-                # server still claims numEntriesRemaining > 0. Without this
-                # guard the `last = entry.timestamp_ms` line below would
-                # raise UnboundLocalError.
                 break
 
-            new_last: Optional[int] = None
+            # TB does NOT guarantee timestamp-descending order within a
+            # page — single stray old entries are interleaved with recent
+            # ones (some kind of migrated/imported data). Skip entries past
+            # the limit but don't bail mid-page. Track the page-min
+            # timestamp so pagination always advances backwards, and only
+            # stop when the ENTIRE page is past the limit.
+            min_ts_ms: Optional[int] = None
+            yielded_any = False
             for entry_json in entries_json:
                 entry = TinybeanEntry(**entry_json)
+                ts_ms = entry.timestamp_ms
+                if min_ts_ms is None or ts_ms < min_ts_ms:
+                    min_ts_ms = ts_ms
                 if limit_check(entry):
-                    return
+                    continue
+                yielded_any = True
                 yield entry
-                new_last = entry.timestamp_ms
 
-            if new_last is None:
+            if min_ts_ms is None:
                 break
-            last = new_last
+            # If we got nothing past the limit on a full page, every older
+            # page will also fail — stop walking.
+            if not yielded_any:
+                break
+            last = min_ts_ms
 
     async def request_export(
         self, journal: TinybeanJournal, start_dt: datetime, end_dt: datetime
