@@ -101,7 +101,7 @@ class TinybeanJournal(BaseTinybean):
 class TinybeanFollowing(BaseTinybean):
     id: int = Field(repr=True)
     url: str = Field(alias="URL")
-    relationship: TinybeanRelationshiop
+    relationship: Optional[TinybeanRelationshiop] = None
     journal: TinybeanJournal
 
 
