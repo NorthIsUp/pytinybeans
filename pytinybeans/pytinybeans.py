@@ -95,7 +95,6 @@ class TinybeanJournal(BaseTinybean):
 
     def __post_init__(self):
         for child in self.children:
-            print(f"setting journal on child {child}")
             child._journal = self  # type: ignore
 
 
