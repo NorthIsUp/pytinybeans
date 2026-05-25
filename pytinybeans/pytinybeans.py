@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from functools import cached_property, partial
 from itertools import count
 from typing import (
@@ -146,7 +146,7 @@ class TinybeanEntry(BaseTinybean):
 
     @field_validator("timestamp", mode="before")
     def validate_timestamp(cls, value: str) -> datetime:
-        return datetime.fromtimestamp(float(value) / 1000)
+        return datetime.fromtimestamp(float(value) / 1000, tz=timezone.utc)
 
     @field_validator("attachment_type", mode="before")
     def validate_attachment_type(
@@ -292,7 +292,7 @@ class PyTinybeans:
         limit: Union[None, int, datetime] = None,
     ) -> AsyncGenerator[TinybeanEntry, None]:
         if last is None:
-            last = int(datetime.utcnow().timestamp() * 1000)
+            last = int(datetime.now(timezone.utc).timestamp() * 1000)
 
         _counter: Optional[Iterable[int]] = count() if isinstance(limit, int) else None
 
