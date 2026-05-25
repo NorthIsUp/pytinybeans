@@ -137,6 +137,9 @@ class TinybeanEntry(BaseTinybean):
     caption: str = Field(repr=True)
     blobs: TinybeanBlobs
     attachment_type: Optional[str] = None
+    orientation: Optional[str] = None  # "LANDSCAPE" | "PORTRAIT"
+    deleted: bool = False
+    sort_order: Optional[int] = None
     latitude: Optional[float | str] = None
     longitude: Optional[float | str] = None
     attachment_url__mp4: Optional[str] = None
