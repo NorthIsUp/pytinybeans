@@ -317,13 +317,25 @@ class PyTinybeans:
             response.raise_for_status()
             response_json = await response.json()
 
-            for entry_json in response_json["entries"]:
+            entries_json = response_json.get("entries") or []
+            if not entries_json:
+                # Empty page — nothing more to paginate from, even if the
+                # server still claims numEntriesRemaining > 0. Without this
+                # guard the `last = entry.timestamp_ms` line below would
+                # raise UnboundLocalError.
+                break
+
+            new_last: Optional[int] = None
+            for entry_json in entries_json:
                 entry = TinybeanEntry(**entry_json)
                 if limit_check(entry):
                     return
                 yield entry
+                new_last = entry.timestamp_ms
 
-            last = entry.timestamp_ms
+            if new_last is None:
+                break
+            last = new_last
 
     async def request_export(
         self, journal: TinybeanJournal, start_dt: datetime, end_dt: datetime
