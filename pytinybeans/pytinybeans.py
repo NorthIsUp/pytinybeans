@@ -19,7 +19,7 @@ from urllib.parse import urljoin
 
 import aiohttp
 import inflection
-from pydantic import BaseModel, ConfigDict, Field, field_validator, typing
+from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator, typing
 
 IOS_CLIENT_ID = "13bcd503-2137-9085-a437-d9f2ac9281a1"
 
@@ -150,12 +150,14 @@ class TinybeanEntry(BaseTinybean):
 
     @field_validator("attachment_type", mode="before")
     def validate_attachment_type(
-        cls, v: str, values: Sequence[str], **kwargs: Any
+        cls, v: Optional[str], info: ValidationInfo
     ) -> Optional[str]:
         if v == "VIDEO":
             return v
-        else:
-            return kwargs.get("type")
+        # Pydantic v2: sibling field values that have already been
+        # validated live on info.data. `type` is declared earlier on
+        # the model so it's available here.
+        return info.data.get("type")
 
     @property
     def is_video(self) -> bool:
