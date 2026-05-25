@@ -154,6 +154,12 @@ class TinybeanEntry(BaseTinybean):
     orientation: Optional[str] = None  # "LANDSCAPE" | "PORTRAIT"
     deleted: bool = False
     sort_order: Optional[int] = None
+    # The calendar date the entry is *for* in the journal — NOT the upload
+    # time. A photo taken in January but uploaded in May has year/month/day=Jan
+    # and timestamp=May. Always prefer these for grouping/display.
+    year: Optional[int] = None
+    month: Optional[int] = None
+    day: Optional[int] = None
     latitude: Optional[float | str] = None
     longitude: Optional[float | str] = None
     attachment_url__mp4: Optional[str] = None
@@ -174,6 +180,17 @@ class TinybeanEntry(BaseTinybean):
         # validated live on info.data. `type` is declared earlier on
         # the model so it's available here.
         return info.data.get("type")
+
+    @property
+    def journal_date(self) -> Optional[date]:
+        """The date this entry belongs to in the journal (TB's year/month/day).
+
+        Distinct from `timestamp`, which is when the entry was uploaded.
+        For backdated uploads, journal_date is the photo date.
+        """
+        if self.year and self.month and self.day:
+            return date(self.year, self.month, self.day)
+        return None
 
     @property
     def is_video(self) -> bool:
