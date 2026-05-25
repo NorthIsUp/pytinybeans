@@ -198,6 +198,8 @@ class TinybeanEntry(BaseTinybean):
 class PyTinybeans:
     session: Optional[aiohttp.ClientSession] = None
     _access_token: Optional[str] = None
+    _username: Optional[str] = None
+    _password: Optional[str] = None
     API_BASE_URL: ClassVar[str] = "https://tinybeans.com/api/1/"
     CLIENT_ID: ClassVar[str] = IOS_CLIENT_ID
 
@@ -207,7 +209,7 @@ class PyTinybeans:
             self.session = aiohttp.ClientSession()
         return self.session
 
-    async def _api(
+    async def _raw_request(
         self,
         path: str,
         params: Optional[Dict[str, Union[None, str, int]]] = None,
@@ -234,6 +236,31 @@ class PyTinybeans:
 
         return response
 
+    async def _api(
+        self,
+        path: str,
+        params: Optional[Dict[str, Union[None, str, int]]] = None,
+        json: Optional[Dict[str, str]] = None,
+        method: str = "GET",
+    ) -> aiohttp.ClientResponse:
+        response = await self._raw_request(path, params=params, json=json, method=method)
+
+        # If the token expired, transparently re-login once and retry.
+        if (
+            response.status == 401
+            and self._access_token
+            and self._username
+            and self._password
+        ):
+            # Drop the dead token so login() actually re-authenticates.
+            self._access_token = None
+            await self.login(self._username, self._password)
+            response = await self._raw_request(
+                path, params=params, json=json, method=method
+            )
+
+        return response
+
     @property
     def logged_in(self):
         if self._access_token:
@@ -242,6 +269,10 @@ class PyTinybeans:
         return False
 
     async def login(self, username: str, password: str) -> bool:
+        # Remember credentials so a later 401 can transparently re-login.
+        self._username = username
+        self._password = password
+
         if self.logged_in:
             # check via api/me or something that this token works
             return self.logged_in
